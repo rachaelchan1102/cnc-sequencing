@@ -1,0 +1,15 @@
+factor,setting,lambda_per_h,d_tardiness_s,d_tardiness_ci95,d_changeover_s_per_h,d_changeover_ci95
+Baseline,baseline,4.94,-25014.93,1441.86,-1071.41,54.7
+Load,below window (0.7x),2.09,-665.22,195.05,-265.32,53.77
+Load,light,3.58,-13689.92,1920.36,-716.46,43.37
+Load,heavy,6.31,-29129.16,1095.87,-1590.33,60.41
+Due-date slack k,k = 2,4.94,-25222.6,1432.37,-1071.41,54.7
+Due-date slack k,k = 8,4.94,-24186.32,1461.32,-1071.41,54.7
+Product mix,A-heavy,7.25,-27710.55,1735.61,-1148.11,70.58
+Product mix,B-heavy,6.26,-26535.9,1710.33,-1029.98,60.38
+Product mix,C-heavy,3.47,-17004.17,1678.93,-905.84,54.87
+Changeover variability,0%,4.94,-25043.24,1459.06,-1072.04,54.29
+Changeover variability,200%,4.94,-25015.55,1453.26,-1064.59,54.65
+Batch cap (grouped only),cap 2,4.94,-7541.12,786.74,-250.85,25.01
+Batch cap (grouped only),cap 5,4.94,-22785.37,1219.2,-893.43,38.3
+Batch cap (grouped only),cap 10,4.94,-25015.19,1391.0,-1049.67,52.65

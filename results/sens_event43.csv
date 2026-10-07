@@ -1,0 +1,9 @@
+version,strategy,jobs_per_h,changeover_min_per_h,avg_lateness_h,pct_late
+with event 43 (used),fcfs,4.94,34.09,7.14,94.51
+with event 43 (used),edd,4.94,34.06,7.02,94.74
+with event 43 (used),grouped,4.94,16.24,0.51,38.01
+with event 43 (used),opt,4.94,16.51,0.45,37.03
+without event 43,fcfs,4.94,34.14,7.13,94.51
+without event 43,edd,4.94,33.81,6.79,94.89
+without event 43,grouped,4.94,16.17,0.5,37.55
+without event 43,opt,4.94,16.56,0.46,36.86
