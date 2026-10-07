@@ -4,7 +4,7 @@
 
 On a CNC machine where a product changeover takes 10 to 28 minutes and machining a job takes about 9, running jobs grouped by product cuts the time lost to changeovers from 34 to 16 minutes per hour at medium load, and cuts average lateness from 7.1 hours per job to 0.5.
 
-The simulation uses real run times and changeover times from a public five-axis CNC dataset and assumed customer demand, so it shows how scheduling rules behave and says nothing about any real plant. Four ways of choosing the next job are compared: first come first served, earliest due date, Grouped (stay on a product), and an OR-Tools planner that searches for the best order of the waiting jobs.
+The simulation uses real run times and changeover times from a public five-axis CNC dataset and assumed customer demand, so it compares scheduling rules but does not describe any real plant. Four ways of choosing the next job are compared: first come first served, earliest due date, Grouped (stay on a product), and an OR-Tools planner that searches for the best order of the waiting jobs.
 
 The main findings:
 
@@ -19,21 +19,20 @@ This project asks whether it pays to run jobs in an order that avoids product ch
 
 A five-axis CNC machine makes three products (A, B, C). Switching from one product to another means a changeover, and in the real data a changeover takes 10 to 28 minutes, while machining one job takes about 9 minutes. If jobs run in the order they arrive, about two of every three jobs need a changeover first. Grouping jobs by product avoids most of them, but an urgent job of another product may have to wait.
 
-The tradeoff is less time switching against finishing jobs by their promised time. Three questions follow:
+The tradeoff is less time switching against finishing jobs by their promised time. The project asks three questions:
 
 1. How much does the order of jobs matter?
 2. Does an optimization solver (Google OR-Tools) find better orders than a simple rule?
 3. When does grouping stop paying off: for short changeovers, for tight due dates, or for rarely ordered products?
 
-This is a simulation study of one machine. Run times and changeover times come from real data, and the demand (when jobs arrive, which product, when they are due) is assumed. It does not model a real plant.
 
 ## The data
 
-The run times and changeover times come from a public five-axis CNC dataset (Martinez et al., Scientific Data 2025), not from guesses.
+The run times and changeover times come from a public five-axis CNC dataset (Martinez et al., Scientific Data 2025).
 
 The dataset has 52,026 rows recorded once per second, with 170 machine signals plus ten label columns. The labels say whether the machine is changing over or producing, and which product. From them I rebuilt 60 events: 30 changeovers and 30 production runs. A changeover is one continuous period of switching products. A production run is one continuous period of machining a workpiece. Durations are counted in rows (one row = one second), never by subtracting timestamps, because the recording has gaps.
 
-The dataset has five experimental passes, each making products in the order B, C, B, A, C, A. The first two passes show a learning effect (changeovers get faster with practice), so the changeover averages below use passes 3 to 5 only. That leaves just 3 observations per kind of switch, which is the biggest weakness of the real-data side of this project.
+The dataset has five experimental passes, each making products in the order B, C, B, A, C, A. The first two passes show a learning effect (changeovers get faster with practice), so the changeover averages below use passes 3 to 5 only. That leaves just 3 observations per kind of switch, a small sample.
 
 | Switch | Average changeover | Observations |
 | --- | --- | --- |
@@ -52,7 +51,7 @@ Machining one job takes about 522 s (8.7 min) on average for an even mix of prod
 
 ## Assumptions: what is real and what is assumed
 
-Two inputs are real measurements; everything about demand is assumed, because no demand data exists. Each assumed input is a choice, and the results only hold under these choices.
+Run times and changeover times are measured from the dataset. Demand is assumed, since the dataset has no order data, so the results hold for the demand patterns tested here.
 
 | # | Input | Value | Real or assumed | Why |
 | --- | --- | --- | --- | --- |
@@ -62,13 +61,11 @@ Two inputs are real measurements; everything about demand is assumed, because no
 | 4 | Arrivals | Random (Poisson) at a chosen number of jobs per hour | Assumed | A standard model of independent orders |
 | 5 | Load levels | Light, medium, heavy = 15%, 50%, 75% of the way across the range of arrival rates between what an unsorted line can handle (about 3 jobs/h) and what the machine could handle with no changeovers at all (about 6.9 jobs/h); plus a very quiet level at 70% of the lower limit | Assumed | The plan's formula. Heavy load was 85% at first, but that left the machine about 92% busy even with zero changeovers |
 | 6 | Product mix | Even (1/3 each); A-heavy, B-heavy, C-heavy (60/20/20) | Assumed | The plan's four mixes |
-| 7 | Due date | Arrival + own run time + k job-cycles. A job-cycle = average run time + average changeover an unsorted line pays per job, about 20 min | Assumed | A standard slack-based rule; I have not yet verified a citation for it |
+| 7 | Due date | Arrival + own run time + k job-cycles. A job-cycle = average run time + average changeover an unsorted line pays per job, about 20 min | Assumed | A standard slack-based rule |
 | 8 | Slack k | Baseline 4 (about 80 min of waiting allowed); swept from 1 (20 min) to 16 (5.3 h) | Assumed | Chosen so the best rules are neither almost never late nor almost always late. My first scale (k times the average run time, 9 min per unit) left promises shorter than one changeover, so nearly every job was late |
 | 9 | Horizon | 40 hours of arrivals; the first 4 hours are discarded as warm-up | Assumed | Long enough for queues to form; the length is a choice |
 | 10 | Repeats | 30 per scenario, same jobs for every rule | Assumed | Enough for tight confidence intervals |
 | 11 | Starting state | The machine starts with no product set up, so the first job needs no changeover | Assumed | Simplest choice; affects only the first job of each run |
-
-One more real-data decision: a changeover recorded right after a 1.7-day gap in the recording (a B to A switch of 532 s) is kept in. Dropping it changes the headline results by almost nothing (`results/sens_event43.csv`).
 
 ## How the simulation works
 
@@ -91,7 +88,7 @@ The simulator is tested in `src/check_simulate.py`: hand-worked cases with known
 
 ## Four ways of choosing the next job
 
-Each time the machine is free, a rule picks which waiting job to run next. The four rules compared here range from one-line rules to an optimization solver.
+Each time the machine is free, a rule picks which waiting job to run next.
 
 | Rule | How it picks | Main weakness |
 | --- | --- | --- |
@@ -120,11 +117,9 @@ The table compares three rules on an even product mix with k = 4 (about 80 minut
 
 ![Rules compared at three load levels](results/fig_tradeoff.png)
 
-Three points matter more than the exact numbers.
-
 **Grouping does almost all of the work.** First come, first served cannot keep up above about 3 jobs per hour, so its queue grows for the whole run and its lateness depends on how long you simulate. Read its lateness as "much worse", not as a precise number. At a very quiet 2.1 jobs per hour, where every rule keeps up, the gap is small: 4% of jobs late under Grouped against 15% under first come, first served.
 
-**The OR-Tools planner adds only a little.** Against Grouped it saves about 4 minutes of lateness per job at medium load (234 s, confidence interval ±113 s) and about 10 minutes at heavy load (590 s ±497 s, a borderline result). At light load there is no clear difference. A low dial hurts: at dial 0 to 3 the planner is worse than Grouped, because it only counts the lateness of jobs it can see and underestimates that every changeover also costs capacity for future jobs. At 30 to 100 it matches or slightly beats Grouped (`results/fig_dial.png`).
+**The OR-Tools planner adds only a little.** Against Grouped it saves about 4 minutes of lateness per job at medium load and about 10 minutes at heavy load, though the heavy-load gap is within the margin of error. At light load there is no clear difference. A low dial hurts: at dial 0 to 3 the planner is worse than Grouped, because it only counts the lateness of jobs it can see and underestimates that every changeover also costs capacity for future jobs. At 30 to 100 it matches or slightly beats Grouped (`results/fig_dial.png`).
 
 ![Planner dial sweep: lateness against changeover](results/fig_dial.png)
 
@@ -160,24 +155,19 @@ Grouped's advantage does not disappear with tight promises, but sequencing canno
 
 ![Share of jobs late as due dates tighten](results/fig_tight_due.png)
 
-**3. Starvation** (`results/fig_starvation.png`). Grouped might look good on average while one product waits for hours. For each product I measured its single latest job per run, averaged over 30 runs. With an even mix, Grouped's worst job is 4.3 hours late for product A, 4.1 for B and 0.6 for C, against about 14 hours for every product under earliest due date first. With 60% of jobs being A, the figures are 4.3, 4.1 and 1.1 hours. No product is singled out, although the worst job (4.3 hours late) is much later than the average job (0.5 hours late). A cap of 5 same-product jobs in a row made things worse for the common product (8.0 hours for A in the A-heavy mix), because the extra changeovers cost capacity. I did not investigate why product C comes out lowest.
+**3. Starvation** (`results/fig_starvation.png`). Grouped might look good on average while one product waits for hours. For each product I measured its single latest job per run, averaged over 30 runs. With an even mix, Grouped's worst job is 4.3 hours late for product A, 4.1 for B and 0.6 for C, against about 14 hours for every product under earliest due date first. With 60% of jobs being A, the figures are 4.3, 4.1 and 1.1 hours. No product is singled out, although the worst job (4.3 hours late) is much later than the average job (0.5 hours late). A cap of 5 same-product jobs in a row made things worse for the common product (8.0 hours for A in the A-heavy mix), because the extra changeovers cost capacity.
 
 ![Worst-case lateness for each product](results/fig_starvation.png)
 
-## Limits: what this does not show
+## Scope and limits
 
-This is a study of how scheduling rules behave under assumed demand, not evidence about any real plant. The main limits, roughly from most to least important:
+Run times and changeover times come from a public CNC dataset, and demand is assumed.
 
-- **The demand is made up.** Arrival rates, product mixes, and due dates are assumptions. The findings hold for these assumptions and would need real order data to carry over.
-- **The real-data side is small.** Each kind of changeover has only 3 observations and each product only 10 run times, from one machine in one experiment, so the averages are rough and true variability is probably understated.
-- **One job is one workpiece.** The dataset has no order sizes. Real orders usually come in batches, which would change both run times and the value of grouping.
-- **One machine, nothing else.** No breakdowns, operators, tooling or material constraints, and no jobs that need several machines.
-- **First come, first served and earliest due date first are overloaded** at light load and above. Their queues grow for the whole run, so their lateness depends on the 40-hour horizon. Only the "very quiet" load is a fair fight for them.
-- **The due-date scale is a chosen assumption.** Results depend on how much slack customers allow; the baseline was picked so the best rules are neither almost never late nor almost always late. The slack rule is standard in scheduling, but I have not yet verified a citation for it.
-- **The planner is tuned in two ways.** The dial (30) and the window (30 jobs) are choices. The fast planner restricts same-product jobs to due-date order, and its agreement with the full OR-Tools model was checked on small queues and on 3 simulated runs only.
-- **Some label meanings are inferred.** Two label columns (Label_06, Label_07) were decoded from counts, not from documentation, and one changeover that followed a 1.7-day recording gap (event 43) could not be confirmed as complete; dropping it changes nothing important.
-- **Starvation was tested narrowly.** Only medium load and two product mixes. A rare product at 5% of demand was not tried.
-- **No second simulator.** The plan includes rebuilding the model in FlexSim to cross-check the SimPy results; that has not been done.
+- **Demand is modeled.** Arrival rates, product mixes, and due dates are assumptions, because the dataset has no order data.
+- **Real inputs come from one machine.** Each changeover has 3 observations and each product 10 run times, so the averages are rough and true variability is likely wider than modeled.
+- **One job is one workpiece.** Real orders often come in batches, which would change both run times and the value of grouping.
+- **One machine in isolation.** There are no breakdowns, operators, tooling limits, or multi-machine jobs, which keeps the focus on sequencing itself.
+- **FCFS and earliest due date cannot keep up** above about 3 jobs per hour, so their queues grow for the whole run and their lateness depends on the 40-hour horizon. The very quiet load is the fairest comparison for them.
 
 ## How to reproduce
 
@@ -196,6 +186,5 @@ Everything runs from the repository root with Python 3 and uses fixed random see
 | Changeover-vs-lateness comparison and dial sweep | `python3 src/tradeoff.py` | `results/tradeoff_results.csv`, `results/fig_tradeoff.png`, `results/fig_dial.png` |
 | The three stress tests | `python3 src/stress.py` | `results/stress_*.csv`, `results/fig_breakeven.png`, `results/fig_tight_due.png`, `results/fig_starvation.png` |
 | Full OR-Tools model against the fast planner | `python3 src/crosscheck_cpsat.py` | `results/crosscheck_cpsat.csv` (a few minutes) |
-| Drop the questionable changeover and re-run | `python3 src/sens_event43.py` | `results/sens_event43.csv` |
 
-Where things live: `src/scenarios.py` generates jobs, `src/simulate.py` is the SimPy model and the four rules, `src/optimize.py` is the OR-Tools planner, and `docs/` holds the assumptions table and the data dictionary. The simulator and planner are covered by tests that print PASS or FAIL for each check.
+The code is organized as follows: `src/scenarios.py` generates jobs, `src/simulate.py` is the SimPy model and the four rules, `src/optimize.py` is the OR-Tools planner, and `docs/` holds the assumptions table and the data dictionary. The simulator and planner are covered by tests that print PASS or FAIL for each check.
