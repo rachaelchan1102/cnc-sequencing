@@ -1,0 +1,10 @@
+# Raw data is never committed (download instructions are in data/README.md)
+data/*
+!data/README.md
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+.DS_Store
